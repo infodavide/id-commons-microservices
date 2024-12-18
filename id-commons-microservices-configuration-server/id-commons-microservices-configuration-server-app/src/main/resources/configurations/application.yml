@@ -1,0 +1,16 @@
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    service-url:
+      defaultZone: http://${registry_service.host:localhost}:${registry_service.port:8761}/eureka
+name:
+  value: infodavid
+spring:
+  cloud:
+    config:
+      override-system-properties: false
+management:
+  tracing:
+    sampling:
+      probability: 1.0

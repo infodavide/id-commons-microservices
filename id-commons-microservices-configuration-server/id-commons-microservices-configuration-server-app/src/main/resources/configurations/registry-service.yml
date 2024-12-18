@@ -1,0 +1,43 @@
+spring:
+  config:
+    import: optional:configserver:http://${configuration_server.host:localhost}:${configuration_server.port:8888}
+  profiles:
+    active: actuator,${registry_service.profile:production}
+  application:
+    name: registry-service
+management:
+  info:
+    env:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: info
+info:
+  application:
+    name: ${spring.application.name}
+    description: Eureka registry service
+    version: '@project.version@'
+    spring-cloud-version: '@spring-cloud.version@'
+    spring-boot-version: '@project.parent.version@'
+server:
+  port: ${registry_service.port:8761}
+eureka:
+  name: registry-service 
+  port: ${registry_service.port:8761}
+  instance:
+    hostname: ${registry_service.host:localhost}
+    ip-address: ${registry_service.host}
+    instance-id: ${registry_service.host}:${registry_service.port}
+    preferIpAddress: true
+    leaseRenewalIntervalInSeconds: 10
+    leaseExpirationDurationInSeconds: 2
+  client:
+    registerWithEureka: false
+    fetchRegistry: false
+  renewalPercentThreshold: 0.85
+  preferSameZone: false
+  shouldUseDns: false
+  shouldOnDemandUpdateStatusChange: true
+  serviceUrl:
+    default: http://${registry_service.host}:${registry_service.port}/eureka/

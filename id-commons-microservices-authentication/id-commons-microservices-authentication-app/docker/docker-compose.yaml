@@ -1,0 +1,145 @@
+version: '3.8'
+networks:
+  default:
+    enable_ipv6: false
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.10.0/24
+services:
+  database-server:
+    image: postgres:16.6
+    pull_policy: if_not_present
+    container_name: database-server
+    networks:
+      default:
+        ipv4_address: 172.28.10.10
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_DB=test
+      - POSTGRES_USER=test
+      - POSTGRES_PASSWORD=test
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U test -d test'"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+  configuration-server:
+    image: infodavid/id-commons-microservices-configuration-server-app:latest
+    pull_policy: if_not_present
+    container_name: configuration-server
+    depends_on: 
+      - database-server
+    links:
+      - database-server
+    networks:
+      default:
+        ipv4_address: 172.28.10.15
+    ports:
+      - "127.0.0.1:8888:8888"
+    volumes:
+      - $SERVICE_HOME/config/configuration-server:/application/config
+      - $SERVICE_HOME/logs/configuration-server:/application/logs
+    environment:
+      - SERVICE_HOST=172.28.10.15
+      - SERVICE_PROFILE=production
+      - SERVICE_USER=root
+      - SERVICE_PASSWORD=secret
+      - SERVICE_DATABASE=test
+      - SERVICE_DATABASE_HOST=172.28.10.10
+      - SERVICE_DATABASE_PORT=5432
+      - SERVICE_DATABASE_USER=test
+      - SERVICE_DATABASE_PASSWORD=test
+  registry-server:
+    image: infodavid/id-commons-microservices-registry:latest
+    pull_policy: if_not_present
+    container_name: registry-server
+    depends_on: 
+      configuration-server:
+        condition: service_healthy
+    links:
+      - configuration-server
+    networks:
+      default:
+        ipv4_address: 172.28.10.20
+    ports:
+      - "127.0.0.1:8761:8761"
+    volumes:
+      - $SERVICE_HOME/config/registry-server:/application/config
+      - $SERVICE_HOME/logs/registry-server:/application/logs
+    environment:
+      - SERVICE_HOST=172.28.10.25
+      - SERVICE_PROFILE=production
+      - SERVICE_USER=root
+      - SERVICE_PASSWORD=secret
+      - CONFIGURATION_SERVICE_HOST=configuration-server
+      - CONFIGURATION_SERVICE_PORT=8888
+  gateway-server:
+    image: infodavid/id-commons-microservices-gateway:latest
+    pull_policy: if_not_present
+    container_name: gateway-server
+    depends_on: 
+      configuration-server:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+    links:
+      - configuration-server
+      - registry-server
+    networks:
+      default:
+        ipv4_address: 172.28.10.25
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - $SERVICE_HOME/config/gateway-server:/application/config
+      - $SERVICE_HOME/logs/gateway-server:/application/logs
+    environment:
+      - SERVICE_HOST=172.28.10.25
+      - SERVICE_PROFILE=production
+      - SERVICE_USER=root
+      - SERVICE_PASSWORD=secret
+      - CONFIGURATION_SERVICE_HOST=configuration-server
+      - CONFIGURATION_SERVICE_PORT=8888
+      - REGISTRY_SERVICE_HOST=registry-server
+      - REGISTRY_SERVICE_PORT=8761
+  authentication-server:
+    image: infodavid/id-commons-microservices-authentication-app:latest
+    pull_policy: if_not_present
+    container_name: authentication-server
+    depends_on: 
+      database-server:
+        condition: service_healthy
+      configuration-server:
+        condition: service_healthy
+      registry-server:
+        condition: service_healthy
+    links:
+      - database-server
+      - configuration-server
+      - registry-server
+    networks:
+      default:
+        ipv4_address: 172.28.10.30
+    ports:
+      - "127.0.0.1:8001:8080"
+    volumes:
+      - $SERVICE_HOME/config/authentication-server:/application/config
+      - $SERVICE_HOME/logs/authentication-server:/application/logs
+    environment:
+      - SERVICE_HOST=172.28.10.30
+      - SERVICE_PROFILE=production
+      - SERVICE_USER=root
+      - SERVICE_PASSWORD=secret
+      - SERVICE_DATABASE=test
+      - SERVICE_DATABASE_HOST=database-server
+      - SERVICE_DATABASE_PORT=5432
+      - SERVICE_DATABASE_USER=test
+      - SERVICE_DATABASE_PASSWORD=test
+      - CONFIGURATION_SERVICE_HOST=configuration-server
+      - CONFIGURATION_SERVICE_PORT=8888
+      - REGISTRY_SERVICE_HOST=registry-server
+      - REGISTRY_SERVICE_PORT=8761
+
+
